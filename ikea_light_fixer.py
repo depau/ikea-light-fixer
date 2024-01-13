@@ -46,6 +46,26 @@ class TimestampDict(MutableMapping[float, T]):
     def __iter__(self):
         return iter(self._dict)
 
+    def items(self):
+        return self._dict.items()
+
+    def values(self):
+        return self._dict.values()
+
+    def keys(self):
+        return self._dict.keys()
+
+    def __repr__(self):
+        return repr(self._dict)
+
+    def __str__(self):
+        return str(self._dict)
+
+    def __eq__(self, other):
+        if not isinstance(other, TimestampDict):
+            return NotImplemented
+        return self._dict == other._dict
+
 
 @dataclass
 class LightState:
@@ -63,6 +83,38 @@ class LightState:
             return self.brightness == __value.brightness
 
         return True
+
+    def __hash__(self):
+        return hash((self.state, self.brightness if self.state else None))
+
+
+async def max_brightness_last_n_seconds(
+    history: TimestampDict[LightState], n_seconds=5
+):
+    max_brightness = 0
+    cumulative_on_time = 0.0
+    last_timestamp = asyncio.get_running_loop().time()
+
+    for timestamp, light_state in reversed(history.items()):
+        time_diff = last_timestamp - timestamp
+
+        # Only accumulate time when the light is on
+        if light_state.state:
+            cumulative_on_time += time_diff
+            # Update max brightness
+            if light_state.brightness > max_brightness:
+                max_brightness = light_state.brightness
+
+        # Stop if we have accumulated n_seconds of on-time
+        if cumulative_on_time >= n_seconds:
+            break
+
+        last_timestamp = timestamp
+
+    if max_brightness <= 1:
+        return 255
+
+    return max_brightness
 
 
 class LightFixer:
@@ -117,16 +169,7 @@ class LightFixer:
             return
 
         if cur_state.brightness <= 1:
-            try:
-                time = now - 1
-                state = self.history[time]
-
-                while state.brightness <= 1:
-                    time -= 1
-                    state = self.history[time]
-                brightness = state.brightness
-            except KeyError:
-                brightness = 255
+            brightness = await max_brightness_last_n_seconds(self.history)
 
             print(
                 f"Rolling back brightness of {self.light_name} to {brightness} (was {cur_state.brightness})"
