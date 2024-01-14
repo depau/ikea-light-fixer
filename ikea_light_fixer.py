@@ -12,7 +12,7 @@ from typing import TypeVar, MutableMapping, Optional, cast
 import aiomqtt
 from sortedcontainers import SortedDict
 
-DECIDE_AFTER = 1  # seconds
+DECIDE_AFTER = float(os.environ.get("DECIDE_AFTER", "1"))  # seconds
 MAX_HISTORY_LENGTH = 50  # seconds
 
 T = TypeVar("T")
