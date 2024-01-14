@@ -195,6 +195,8 @@ class LightFixerDict(defaultdict):
 
 
 async def main():
+    ignore_list = os.environ.get("IGNORE", "").split(",")
+
     async with aiomqtt.Client(
         os.environ["MQTT_HOST"], int(os.environ.get("MQTT_PORT", 1883))
     ) as client:
@@ -208,6 +210,9 @@ async def main():
 
                 if name.endswith("_g"):
                     continue  # ignore groups
+
+                if name in ignore_list:
+                    continue
 
                 try:
                     j = json.loads(message.payload.decode("utf-8"))
