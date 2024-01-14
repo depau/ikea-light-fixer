@@ -1,0 +1,29 @@
+version: "3.7"
+services:
+  onlevel-fixer:
+    build:
+      context: .
+      dockerfile: onLevel.Dockerfile
+    restart: on-failure
+    environment:
+      MQTT_HOST: mosquitto
+      PYTHONUNBUFFERED: "1"
+    networks:
+      - mqtt
+
+  brightness-fixer:
+    build:
+      context: .
+      dockerfile: brightness.Dockerfile
+    restart: on-failure
+    environment:
+      MQTT_HOST: mosquitto
+      IGNORE: bedroom_light
+      DECIDE_AFTER: "0.6"
+      PYTHONUNBUFFERED: "1"
+    networks:
+      - mqtt
+
+networks:
+  mqtt:
+    external: true
