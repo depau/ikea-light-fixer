@@ -12,7 +12,7 @@ from typing import TypeVar, MutableMapping, Optional, cast
 import aiomqtt
 from sortedcontainers import SortedDict
 
-DECIDE_AFTER = 0.5  # seconds
+DECIDE_AFTER = 1  # seconds
 MAX_HISTORY_LENGTH = 50  # seconds
 
 T = TypeVar("T")
@@ -89,7 +89,7 @@ class LightState:
 
 
 async def max_brightness_last_n_seconds(
-    history: TimestampDict[LightState], n_seconds=5
+    history: TimestampDict[LightState], n_seconds=10
 ):
     max_brightness = 0
     cumulative_on_time = 0.0
@@ -122,6 +122,7 @@ class LightFixer:
     client: aiomqtt.Client
     history: TimestampDict[LightState]
     decision_task: Optional[asyncio.Task]
+    decide_at: float
 
     def __init__(self, light_name: str, client: aiomqtt.Client):
         self.light_name = light_name
@@ -153,13 +154,14 @@ class LightFixer:
         if len(self.history) > MAX_HISTORY_LENGTH:
             del self.history[next(iter(self.history))]
 
-        if self.decision_task is not None:
-            self.decision_task.cancel()
+        self.decide_at = now + DECIDE_AFTER
 
-        self.decision_task = self.loop.create_task(self.decide())
+        if self.decision_task is None:
+            self.decision_task = self.loop.create_task(self.decide())
 
     async def decide(self):
-        await asyncio.sleep(DECIDE_AFTER)
+        while self.loop.time() < self.decide_at:
+            await asyncio.sleep(self.decide_at - self.loop.time())
         self.decision_task = None
 
         now = self.loop.time()
