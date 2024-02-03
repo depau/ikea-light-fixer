@@ -7,6 +7,7 @@ services:
     restart: on-failure
     environment:
       MQTT_HOST: mosquitto
+      DECIDE_AFTER: "1.0"
       PYTHONUNBUFFERED: "1"
     networks:
       - mqtt
