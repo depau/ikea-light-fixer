@@ -68,29 +68,28 @@ async def main():
         os.environ["MQTT_HOST"], int(os.environ.get("MQTT_PORT", 1883))
     ) as client:
         lights = {}
+        await client.subscribe("zigbee2mqtt/+")
 
-        async with client.messages() as messages:
-            await client.subscribe("zigbee2mqtt/+")
-            async for message in messages:
-                message = cast(aiomqtt.Message, message)
-                name = message.topic.value.split("/")[1]
+        async for message in client.messages:
+            message = cast(aiomqtt.Message, message)
+            name = message.topic.value.split("/")[1]
 
-                if name.endswith("_g"):
-                    continue  # ignore groups
+            if name.endswith("_g"):
+                continue  # ignore groups
 
-                try:
-                    j = json.loads(message.payload.decode("utf-8"))
-                except json.JSONDecodeError:
-                    traceback.print_exc()
-                    continue
+            try:
+                j = json.loads(message.payload.decode("utf-8"))
+            except json.JSONDecodeError:
+                traceback.print_exc()
+                continue
 
-                if LightFixer.is_light(j):
-                    if name not in lights:
-                        lights[name] = LightFixer(name, client)
-                        print(f"Learned about new light {name}, setting onLevel")
-                        await lights[name].set_on_level_task()
+            if LightFixer.is_light(j):
+                if name not in lights:
+                    lights[name] = LightFixer(name, client)
+                    print(f"Learned about new light {name}, setting onLevel")
+                    await lights[name].set_on_level_task()
 
-                    await lights[name].handle_message(j)
+                await lights[name].handle_message(j)
 
 
 if __name__ == "__main__":
